@@ -6,17 +6,17 @@ module IpaReader
     def self.normalize_png(oldPNG)
       pngheader = "\x89PNG\r\n\x1a\n"
 
-      if oldPNG[0...8] != pngheader
+      if oldPNG[0...8].bytes != pngheader.byte
         return nil
       end
-    
+
       newPNG = oldPNG[0...8]
-  
+
       chunkPos = newPNG.length
-  
+
       # For each chunk in the PNG file
       while chunkPos < oldPNG.length
-        
+
         # Reading chunk
         chunkLength = oldPNG[chunkPos...chunkPos+4]
         chunkLength = chunkLength.unpack("N")[0]
@@ -31,7 +31,7 @@ module IpaReader
           width = chunkData[0...4].unpack("N")[0]
           height = chunkData[4...8].unpack("N")[0]
         end
-    
+
         # Parsing the image chunk
         if chunkType == "IDAT"
           # Uncompressing the image chunk
@@ -39,11 +39,11 @@ module IpaReader
           chunkData = inf.inflate(chunkData)
           inf.finish
           inf.close
-  
+
           # Swapping red & blue bytes for each pixel
           newdata = ""
-      
-          height.times do 
+
+          height.times do
             i = newdata.length
             newdata += chunkData[i..i].to_s
             width.times do
@@ -63,8 +63,8 @@ module IpaReader
           chunkCRC = Zlib.crc32(chunkData, chunkCRC)
           chunkCRC = (chunkCRC + 0x100000000) % 0x100000000
         end
-    
-        # Removing CgBI chunk 
+
+        # Removing CgBI chunk
         if chunkType != "CgBI"
           newPNG += [chunkLength].pack("N")
           newPNG += chunkType
@@ -79,7 +79,7 @@ module IpaReader
           break
         end
       end
-   
+
       return newPNG
     end
   end

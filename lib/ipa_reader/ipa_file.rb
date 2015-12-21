@@ -13,33 +13,33 @@ module IpaReader
       info_plist_file = nil
       regex = /Payload\/[^\/]+.app\/Info.plist/
       Zip::File.foreach(file_path) { |f| info_plist_file = f if f.name.match(regex) }
-      cf_plist = CFPropertyList::List.new(:data => self.read_file(regex), :format => CFPropertyList::List::FORMAT_BINARY)
+      cf_plist = CFPropertyList::List.new(data: read_file(regex), format: CFPropertyList::List::FORMAT_AUTO)
       self.plist = cf_plist.value.to_rb
     end
 
     def version
-      plist["CFBundleVersion"]
+      plist['CFBundleVersion']
     end
 
     def short_version
-      plist["CFBundleShortVersionString"]
+      plist['CFBundleShortVersionString']
     end
 
     def name
-      plist["CFBundleDisplayName"]
+      plist['CFBundleDisplayName']
     end
 
     def target_os_version
-      plist["DTPlatformVersion"].match(/[\d\.]*/)[0]
+      plist['DTPlatformVersion'].match(/[\d\.]*/)[0]
     end
 
     def minimum_os_version
-      plist["MinimumOSVersion"].match(/[\d\.]*/)[0]
+      plist['MinimumOSVersion'].match(/[\d\.]*/)[0]
     end
 
     def url_schemes
-      if plist["CFBundleURLTypes"] && plist["CFBundleURLTypes"][0] && plist["CFBundleURLTypes"][0]["CFBundleURLSchemes"]
-        plist["CFBundleURLTypes"][0]["CFBundleURLSchemes"]
+      if plist['CFBundleURLTypes'] && plist['CFBundleURLTypes'][0] && plist['CFBundleURLTypes'][0]['CFBundleURLSchemes']
+        plist['CFBundleURLTypes'][0]['CFBundleURLSchemes']
       else
         []
       end
@@ -47,15 +47,18 @@ module IpaReader
 
     def icon_file
       if plist['CFBundleIconFiles']
-        data = read_file(Regexp.new("#{plist['CFBundleIconFiles'][0]}$"))
-      elsif plist["CFBundleIconFile"]
+        data = read_file(Regexp.new("#{plist['CFBundleIconFiles'].last}$"))
+      elsif plist['CFBundleIconFile']
         data = read_file(Regexp.new("#{plist['CFBundleIconFile']}$"))
+      else plist['CFBundleIcons'] && plist['CFBundleIcons']['CFBundlePrimaryIcon']
+           item = plist['CFBundleIcons']['CFBundlePrimaryIcon'].value
+           if item['CFBundleIconFiles']
+             data = read_file(item['CFBundleIconFiles'].value.last.value)
+           elsif item['CFBundleIconFile']
+             data = read_file(item['CFBundleIconFile'].value.value)
+           end
       end
-      if data
-        IpaReader::PngFile.normalize_png(data)
-      else
-        nil
-      end
+      IpaReader::PngFile.normalize_png(data) if data
     end
 
     def mobile_provision_file
@@ -84,7 +87,7 @@ module IpaReader
 
     def read_file(regex)
       file = nil
-      Zip::File.foreach(self.file_path) { |f| file = f if f.name.match(regex) }
+      Zip::File.foreach(file_path) { |f| file = f if f.name.match(regex) }
       file.get_input_stream.read
     end
   end
